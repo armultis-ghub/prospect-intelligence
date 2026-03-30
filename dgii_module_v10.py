@@ -3,6 +3,19 @@ import os
 import time
 import pandas as pd
 import json
+
+# Forzar flush de salida para logs en tiempo real
+import functools
+print = functools.partial(print, flush=True)
+
+# Patch para Playwright: Aumentar timeout global y deshabilitar sandbox si es necesario
+import subprocess
+try:
+    # Asegurar que los navegadores están instalados
+    subprocess.run(["playwright", "install", "chromium"], check=True, capture_output=True)
+except:
+    pass
+
 import argparse
 import random
 import asyncio
@@ -283,9 +296,17 @@ async def run_apie(db_path, batch_size):
                         with open("/root/.openclaw/workspace/github_projects/prospect-intelligence/prospeccion_diaria.log", "a") as f:
                             f.write(log_msg)
                     else:
+                        # Si es timeout o error de red, marcar como RETRY
+                        # pero si ya alcanzó 5 intentos, mover a FAILED para no buclear
                         status = "RETRY"
                     
                     db.update_status(rnc, status, {"error": res["error"]})
+                    
+                    # Limpieza post-update: Evitar bucle infinito si attempts >= 5
+                    with sqlite3.connect(db_path) as conn:
+                        conn.execute("UPDATE queue SET status = 'FAILED' WHERE rnc = ? AND attempts >= 5 AND status = 'RETRY'", (rnc,))
+                        conn.commit()
+                        
                     print(f"   [FAIL] {res['error']}")
                 
                 # PROTOCOLO DE REPORTE 20% (NDA P-20260320-075)
