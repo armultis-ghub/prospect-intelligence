@@ -57,7 +57,9 @@ def dashboard():
     def calculate_priority(row):
         score = 0
         if row['has_legal_issue']: score += 150 # Prioridad Máxima (Punto de Dolor Legal)
+        if row['plazo'] == '15 de mayo 2025': score += 100 # Prioridad Crítica (Próxima fecha DGII)
         if row['plazo'] == '15 de noviembre 2025': score += 60
+        if row['category'] == 'AI_CHATBOT_UPSKLLING': score += 50 # Alta prioridad chatbot
         if row['category'] == 'VENTAX_MIPYMES': score += 30
         if row['real_email'] and row['real_email'] != 'NOT_FOUND': score += 20
         return score
@@ -70,12 +72,16 @@ def dashboard():
                       title='Prospectos con Conflictos/Reconsideraciones DGII',
                       color='has_legal_issue', color_discrete_map={True:'#e11d48', False:'#cbd5e1'})
 
+    fig_plazo = px.histogram(df_raw, x='plazo', color='category', 
+                            title='Distribución por Plazo DGII y Categoría',
+                            barmode='group')
+
     html = f'''
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Aiara Sales Intelligence V4 - Legal Enforcement</title>
+        <title>Aiara Sales Intelligence V4 - Dashboard Estratégico</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <style>
@@ -83,6 +89,7 @@ def dashboard():
             .sidebar {{ height: 100vh; background: #0f172a; color: white; padding: 20px; position: fixed; width: 300px; overflow-y: auto; }}
             .main-content {{ margin-left: 300px; padding: 40px; }}
             .card-legal {{ border-left: 8px solid #e11d48 !important; background-color: #fff1f2; }}
+            .card-mayo {{ border-left: 8px solid #f59e0b !important; background-color: #fffbeb; }}
             .priority-badge {{ font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 4px; }}
             .legal-source {{ font-size: 0.75rem; color: #e11d48; text-decoration: underline; font-weight: bold; }}
         </style>
@@ -92,7 +99,14 @@ def dashboard():
             <h2 class="text-primary mb-4">Aiara V4 🛡️</h2>
             <form action="/">
                 <div class="mb-3">
-                    <label class="small fw-bold text-muted">FILTRAR POR CONFLICTO LEGAL</label>
+                    <label class="small fw-bold text-muted">PLAZO DGII</label>
+                    <select name="plazo" class="form-select bg-dark text-white" onchange="this.form.submit()">
+                        <option value="all">Ver Todos</option>
+                        {"".join([f'<option value="{p}" {"selected" if selected_plazo==p else ""}>{p}</option>' for p in sorted(df_raw['plazo'].dropna().unique())])}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted">CONFLICTO LEGAL</label>
                     <select name="legal" class="form-select bg-dark text-white" onchange="this.form.submit()">
                         <option value="all">Ver Todos</option>
                         <option value="yes" {"selected" if selected_legal=="yes" else ""}>Solo Reconsideraciones DGII</option>
@@ -110,13 +124,29 @@ def dashboard():
             </form>
         </div>
         <div class="main-content">
-            <h1 class="fw-bold">Inteligencia de Venta Forzada (e-CF)</h1>
-            <p class="text-muted">Correlación de prospectos vs Historial de Reconsideraciones DGII</p>
+            <h1 class="fw-bold">Inteligencia de Prospección Estratégica</h1>
+            <p class="text-muted">Segmentación por Plazos DGII, Chatbots y Dealers MiPyMEs</p>
             
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card p-4 text-center mb-3">
+                        <div class="text-muted small fw-bold">PLAZO MAYO 2025</div>
+                        <div class="h2 fw-bold text-warning">{len(df_raw[df_raw['plazo']=='15 de mayo 2025'])}</div>
+                    </div>
+                    <div class="card p-4 text-center">
+                        <div class="text-muted small fw-bold">CHATBOTS / UPSKILLING</div>
+                        <div class="h2 fw-bold text-info">{len(df_raw[df_raw['category']=='AI_CHATBOT_UPSKLLING'])}</div>
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    <div class="card p-3 mb-3">{fig_plazo.to_html(full_html=False, include_plotlyjs='cdn')}</div>
+                </div>
+            </div>
+
             <div class="row mb-4">
                 <div class="col-md-4">
                     <div class="card p-4 text-center">
-                        <div class="text-muted small fw-bold">TOTAL CRÍTICOS (CON SITUACIÓN DGII)</div>
+                        <div class="text-muted small fw-bold">CRÍTICOS (CON SITUACIÓN DGII)</div>
                         <div class="h2 fw-bold text-danger">{len(df_raw[df_raw['has_legal_issue']==True])}</div>
                     </div>
                 </div>
@@ -126,31 +156,32 @@ def dashboard():
             </div>
 
             <div class="card">
-                <div class="card-header bg-white fw-bold">🎯 Matriz de Abordaje Estratégico (Recomendaciones)</div>
+                <div class="card-header bg-white fw-bold">🎯 Matriz de Abordaje (Prioridad Mayo 2025 + Chatbots)</div>
                 <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th class="ps-4">Empresa</th>
-                                <th>Situación DGII</th>
+                                <th class="ps-4">Empresa / RNC</th>
+                                <th>Situación / Plazo</th>
                                 <th>Área</th>
                                 <th>Contacto</th>
                                 <th class="pe-4 text-center">Estrategia</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {"".join([f"""<tr class='{"card-legal" if r['has_legal_issue'] else ""}'>
+                            {"".join([f"""<tr class='{"card-legal" if r['has_legal_issue'] else ("card-mayo" if r['plazo']=='15 de mayo 2025' else "")}'>
                                 <td class="ps-4">
                                     <div class="fw-bold">{r['razon_social'][:60]}</div>
                                     <small class="text-muted">RNC: {r['rnc']}</small>
                                 </td>
                                 <td>
-                                    {f'<span class="badge bg-danger">RECONSIDERACIÓN DETECTADA</span><br><a href="https://dgii.gov.do/legislacion/reconsideracion/Paginas/default.aspx" target="_blank" class="legal-source">Ver Fuente DGII</a>' if r['has_legal_issue'] else '<span class="text-muted small">Sin registros públicos</span>'}
+                                    {f'<span class="badge bg-danger mb-1">RECONSIDERACIÓN</span><br>' if r['has_legal_issue'] else ''}
+                                    <span class="badge {"bg-warning text-dark" if r['plazo']=='15 de mayo 2025' else "bg-light text-dark"}">{r['plazo']}</span>
                                 </td>
                                 <td><span class="badge bg-secondary">{r['category']}</span></td>
                                 <td><code>{r['real_email']}</code></td>
                                 <td class="pe-4 text-center">
-                                    {f'<span class="priority-badge bg-danger text-white">CIERRE FORZADO (LEGAL)</span>' if r['has_legal_issue'] else '<span class="priority-badge bg-light border text-dark">ESTÁNDAR</span>'}
+                                    {f'<span class="priority-badge bg-danger text-white">CIERRE FORZADO</span>' if r['has_legal_issue'] else (f'<span class="priority-badge bg-warning text-dark">ALTA PRIORIDAD</span>' if r['plazo']=='15 de mayo 2025' else '<span class="priority-badge bg-light border text-dark">ESTÁNDAR</span>')}
                                 </td>
                             </tr>""" for _, r in display_df.iterrows()])}
                         </tbody>
