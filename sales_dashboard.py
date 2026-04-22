@@ -81,7 +81,7 @@ def dashboard():
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Aiara Sales Intelligence V4 - Dashboard Estratégico</title>
+        <title>ARMULTIS Sales Intelligence V4 - Dashboard Estratégico</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <style>
